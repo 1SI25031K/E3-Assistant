@@ -40,8 +40,14 @@ def generate_feedback(json_str):
         "original_event_id": data["event_id"]
     }
     
-    print("--- F-06へ渡すデータ ---")
-    print(json.dumps(output_data, ensure_ascii=False, indent=2))
+    output_json = json.dumps(output_data, ensure_ascii=False, indent=2)
+    
+    # 人間確認用
+    print("--- F-04 Output ---")
+    print(output_json)
+    
+    # ★ここを追加！ 次の走者(F-05)にバトンを渡す
+    return output_json
 
 if __name__ == "__main__":
     generate_feedback(mock_input_from_f02)

@@ -33,7 +33,7 @@ def archive_process(json_str):
             f.write(json.dumps(data, ensure_ascii=False) + "\n")
         
         print(f"--- F-05: Data archived to {log_file} ---")
-        print("保存完了")
+        return True
         
     except Exception as e:
         print(f"Error archiving data: {e}")
