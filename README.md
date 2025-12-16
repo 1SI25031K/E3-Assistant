@@ -1,8 +1,7 @@
-# Emysys Project - Developer Guide (Ver 2.0)
+# Slacker Project - Developer Guide 
 
 ## 1. プロジェクト概要
 **Slacker**は、スタートアップチームの「具体性の欠如」と「連携不全」を解決するためのAIアシスタントシステムである。
-本ドキュメントは、**2025年12月11日のPhase 1（データ開通）マイルストーン**を達成するための技術的な憲法である。
 
 ---
 
