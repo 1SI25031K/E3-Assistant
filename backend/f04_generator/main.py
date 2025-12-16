@@ -1,53 +1,54 @@
-# backend/f04_generator/main.py
+
+
 import json
 
-# コウタさん(F-02)から渡ってくるはずのデータ（ダミー）
-# ※ここが「Contract」です。彼がこの形式を守る前提であなたは動きます。
-mock_input_from_f02 = """
-{
-  "source": "slack",
-  "event_id": "evt_123456789",
-  "user_id": "U0123456",
-  "text_content": "明日のMTG資料はどこですか？",
-  "intent_tag": "question",
-  "status": "processed"
-}
-"""
-
 def generate_feedback(json_str):
-    data = json.loads(json_str)
+    """
+    Contract B (JSON文字列) を受け取り、
+    AIによるフィードバック結果を含む Contract C (JSON文字列) を返す。
+    """
+    # 1. 入力を受け取る (Contract B)
+    # ここでエラーが出るなら、コウタさんからのデータがおかしいということになる
+    input_data = json.loads(json_str)
     
-    print(f"--- F-04: Generating feedback for tag '{data.get('intent_tag')}' ---")
+    intent = input_data.get("intent_tag")
+    text = input_data.get("text_content")
+    
+    print(f"--- F-04: Generating feedback for intent='{intent}' ---")
 
-    # 本来はLLM (OpenAI API) を呼び出しますが、Phase 1ではロジックのみ実装します
-    intent = data.get("intent_tag")
-    user_content = data.get("text_content")
-    
-    generated_text = ""
+    # 2. ロジック実行 (Mock)
+    # 本来はここでLLMを呼び出すが、まずは条件分岐でダミー応答を作る
+    feedback_text = ""
     
     if intent == "question":
-        generated_text = f"【自動応答】ご質問ありがとうございます。「{user_content}」については、Wikiをご確認ください。"
-    elif intent == "task_report":
-        generated_text = "【自動応答】日報の提出を確認しました。お疲れ様です！"
+        feedback_text = f"【AI回答】ご質問「{text}」について回答します。Wikiのこのページを参照してください。"
+    elif intent == "report":
+        feedback_text = "【AI回答】日報ありがとうございます。進捗は順調ですね！"
+    elif intent == "consultation":
+        feedback_text = f"【AI回答】「{text}」という相談ですね。後ほど担当者から連絡します。"
     else:
-        generated_text = "【自動応答】メッセージを受け取りました。"
+        feedback_text = f"【AI回答】メッセージを受け取りました。（タグ: {intent}）"
 
-    # F-06 (Notifer) へ渡すためのデータを構成
-    # Contract: target_user_id と feedback_summary が必須
+    # 3. 出力を作成 (Contract C)
+    # F-06 (Notify) が必要とする情報を詰める
     output_data = {
-        "target_user_id": data["user_id"],
-        "feedback_summary": generated_text,
-        "original_event_id": data["event_id"]
+        "event_id": input_data.get("event_id"),
+        "target_user_id": input_data.get("user_id"), # 返信先
+        "feedback_summary": feedback_text,
+        "status": "complete"
     }
     
-    output_json = json.dumps(output_data, ensure_ascii=False, indent=2)
-    
-    # 人間確認用
-    print("--- F-04 Output ---")
-    print(output_json)
-    
-    # ★ここを追加！ 次の走者(F-05)にバトンを渡す
-    return output_json
+    # JSON文字列にして返す
+    return json.dumps(output_data, ensure_ascii=False, indent=2)
 
+# 単体テスト用（このファイルを直接実行した時だけ動く）
 if __name__ == "__main__":
-    generate_feedback(mock_input_from_f02)
+    # テスト用データ (Contract B)
+    test_input = json.dumps({
+        "event_id": "EvTEST",
+        "user_id": "U_TEST",
+        "text_content": "テスト",
+        "intent_tag": "question",
+        "status": "pending"
+    })
+    print(generate_feedback(test_input))
