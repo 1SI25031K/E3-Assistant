@@ -75,4 +75,48 @@ Emysys/
 ```
 
 
+MTGでの森重さんのアドバイスと、README（プロジェクト憲法）の定義に基づき、コウセイさん（F-04/F-05担当）が**「他メンバーの進捗を待たずに」**直ちに着手すべきタスクをリストアップしました。
+
+これらをコピーして、自身のToDoリストやDiscordの進捗報告に使用してください。
+
+---
+
+
+
+### 宮本航聖のタスク
+
+#### 1. チームマネジメント
+
+#### 2. インターフェース（Contract）の合意形成
+
+* [ ] **Contract B (F-03 ➔ F-04)** のJSON形式を確定する
+* READMEの定義 に基づき、`intent_tag` や `status` を含むJSONサンプルを作成する。
+
+* [ ] 作成したJSONサンプルをDiscordでコウタ（F-02/03）に共有し、合意をとる
+
+#### 3. F-04 (Generator) のスタンドアロン実装
+
+* [ ] `backend/f04_gen/main.py` を修正・実装する
+* [ ] 入力として **Contract B** のJSONを受け取る処理を書く
+* [ ] 内部ロジック（`intent_tag` に応じた分岐）を実装する（※最初はif文による静的な応答でOK）
+* [ ] 出力として **Contract C** (`target_user_id`, `feedback_summary` 等) のJSONを返す処理を書く
+
+#### 4. F-05 (Archive) の実装
+
+* [ ] `backend/f05_archive/main.py` を実装する
+* [ ] 入力として **Contract C** のJSONを受け取る
+* [ ] ローカルファイル（`local_history.jsonl` 等）にデータを追記保存する処理を書く
+
+#### 5. オーケストレーター (`backend/main.py`) の作成
+
+* [ ] `backend/` 直下に `main.py` を新規作成する（`run_pipeline.py` とは別物として作る）
+* [ ] `main.py` 内部に、F-03から来るはずのデータを模した**ダミー変数（Mock Data）**を定義する
+* [ ] そのダミーデータを引数に `f04_gen` を呼び出し、その結果を `f05_archive` に渡す一連の流れを記述する
+* [ ] ローカル環境で `python backend/main.py` を実行し、エラーなく動作することを確認する
+
+#### 6. Slack Bot (Entrance) の準備
+
+* [ ] Slackアプリ（Bot）を作成し、トークンを取得する
+* [ ] メンションやボタン押下をトリガーにして、上記の `main.py` が起動する仕組みを実装する（※まずはローカルで動作すればOK）
+
 
