@@ -33,6 +33,7 @@ Emysys/
     ├── f02_filter/     # [蘇木]
     ├── f03_db/         # [近藤]
     ├── f04_gen/        # [宮本]
+    │       └──generater.py
     ├── f05_archive/    # [宮本]
     └── f06_notify/     # [近藤]
 ```
