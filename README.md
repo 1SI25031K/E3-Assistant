@@ -24,18 +24,17 @@
 ```text
 Emysys/
 ├── README.md           # 本ドキュメント
-├── docker-compose.yml  # ローカル開発環境用
-├── backend/
-│   ├── common
-│   ├     └──models.py
-│   ├── f01_listener/   # [ユウリ] main.py (FastAPI/Flask)
-│   ├── f02_filter/     # [コウタ] logic.py
-│   ├── f03_db/         # [コウタ] models.py, crud.py
-│   ├── f04_gen/        # [コウセイ] generator.py
-│   ├── f05_archive/    # [コウセイ] logger.py
-│   └── f06_notify/     # [ユウリ] slack_client.py
-└── docs/               # 設計書など
-├── main
+├── .env                # トークン・設定値 (宮本が配布)
+├── main.py             # パイプライン全体の実行エントリーポイント
+└── backend/
+    ├── common/         # 共通定義
+    │   └── models.py   # データクラス (SlackMessage, FeedbackResponse)
+    ├── f01_listener/   # [近藤]
+    ├── f02_filter/     # [蘇木]
+    ├── f03_db/         # [近藤]
+    ├── f04_gen/        # [宮本]
+    ├── f05_archive/    # [宮本]
+    └── f06_notify/     # [近藤]
 ```
 
 ## 4. インターフェース定義 (The Contract)
