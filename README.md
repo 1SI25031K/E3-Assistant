@@ -24,55 +24,105 @@
 ```text
 Emysys/
 ├── README.md           # 本ドキュメント
-├── docker-compose.yml  # ローカル開発環境用
-├── backend/
-│   ├── f01_listener/   # [ユウリ] main.py (FastAPI/Flask)
-│   ├── f02_filter/     # [コウタ] logic.py
-│   ├── f03_db/         # [コウタ] models.py, crud.py
-│   ├── f04_gen/        # [コウセイ] generator.py
-│   ├── f05_archive/    # [コウセイ] logger.py
-│   └── f06_notify/     # [ユウリ] slack_client.py
-└── docs/               # 設計書など
-
+├── .env                # トークン・設定値 (宮本が配布)
+├── main.py             # パイプライン全体の実行エントリーポイント
+└── backend/
+    ├── common/         # 共通定義
+    │   └── models.py   # データクラス (SlackMessage, FeedbackResponse)
+    ├── f01_listener/   # [近藤]
+    ├── f02_filter/     # [蘇木]
+    ├── f03_db/         # [近藤]
+    ├── f04_gen/        # [宮本]
+    ├── f05_archive/    # [宮本]
+    └── f06_notify/     # [近藤]
 ```
 
 ## 4. インターフェース定義 (The Contract)
-各モジュール間のデータ受け渡しは「バケツリレー」方式で行う。以下のJSONスキーマ以外のデータが流れることは許容されない。
+各モジュール間のデータ受け渡しは backend/common/models.py に定義されたクラスのインスタンスで行う。
 
-### Contract A: F-01 (Listener) ➔ F-02 (Filter)
-**Slackの生Payloadを整形し、下流工程が扱いやすい形にする。**
+### Contract: 入力系
+**Slackからの入力、意図判定、ステータス管理に使用。**
 
-```json
-{
-  "source": "slack",                // 固定値
-  "event_id": "Ev00000000",         // Slackの一意なイベントID (トレーサビリティ用)
-  "user_id": "U00000000",           // 発言したユーザーID
-  "text_content": "助けてください"    // ユーザーのメッセージ本文
-}
+```Python
+@dataclass
+class SlackMessage:
+    event_id: str
+    user_id: str
+    text_content: str
+    intent_tag: Optional[str]  # "consultation" | "report" | "chat"
+    status: str                # 処理状況
 ```
-### Contract B: F-02/03 (Filter/DB) ➔ F-04 (Gen)
-**意図判定タグと処理ステータスを付与してコアロジックへ渡す。**
+### Contract: 出力系
+**AI生成結果の通知に使用。**
 
-```json
-{
-  "event_id": "Ev00000000",
-  "user_id": "U00000000",
-  "text_content": "助けてください",
-  "intent_tag": "consultation",     // "consultation" | "report" | "chat"
-  "status": "pending_generation"    // DB保存時のステータス
-}
-```
-
-### Contract C: F-04 (Gen) ➔ F-06 (Notify)
-**生成されたフィードバックと、通知先情報をまとめる。**
-```json
-{
-  "event_id": "Ev00000000",
-  "target_user_id": "U00000000",       // 返信先のユーザーID (= user_id)
-  "feedback_summary": "具体性を上げてください", // 生成されたテキスト
-  "status": "complete"
-}
+```Pthon
+@dataclass
+class FeedbackResponse:
+    event_id: str
+    target_user_id: str
+    feedback_summary: str
+    status: str
 ```
 
+## 5. 開発フローとルール
+**開発環境**
+
+外部連携時のみJSON: Slackとの送受信時以外は、常にクラスベースでデータを扱う。
+
+ENVファイルの活用: トークン等の秘匿情報は .env に記述し、コードに直接書かない。
+
+**ブランチ戦略**
+
+個人ブランチ: メンバーは各自の名前でブランチを作成（例: dev-miyamoto）。
+
+コミット: 頻繁なコミットとプッシュを実施し、進捗を可視化する。
+
+マージ: 共通機能（クラス定義等）は main ブランチへ集約する。
+
+**スケジュール**
+
+完了期限: 12月26日（金） (予備日: 12月29日)
+
+進捗報告: 問題発生時は即座にDiscordで報告し、停滞を避ける。
+
+---
+
+
+
+### 宮本航聖のタスク
+
+#### 1. チームマネジメント
+
+#### 2. インターフェース（Contract）の合意形成
+
+* [ ] **Contract B (F-03 ➔ F-04)** のJSON形式を確定する
+* READMEの定義 に基づき、`intent_tag` や `status` を含むJSONサンプルを作成する。
+
+* [ ] 作成したJSONサンプルをDiscordでコウタ（F-02/03）に共有し、合意をとる
+
+#### 3. F-04 (Generator) のスタンドアロン実装
+
+* [ ] `backend/f04_gen/main.py` を修正・実装する
+* [ ] 入力として **Contract B** のJSONを受け取る処理を書く
+* [ ] 内部ロジック（`intent_tag` に応じた分岐）を実装する（※最初はif文による静的な応答でOK）
+* [ ] 出力として **Contract C** (`target_user_id`, `feedback_summary` 等) のJSONを返す処理を書く
+
+#### 4. F-05 (Archive) の実装
+
+* [ ] `backend/f05_archive/main.py` を実装する
+* [ ] 入力として **Contract C** のJSONを受け取る
+* [ ] ローカルファイル（`local_history.jsonl` 等）にデータを追記保存する処理を書く
+
+#### 5. オーケストレーター (`backend/main.py`) の作成
+
+* [ ] `backend/` 直下に `main.py` を新規作成する（`run_pipeline.py` とは別物として作る）
+* [ ] `main.py` 内部に、F-03から来るはずのデータを模した**ダミー変数（Mock Data）**を定義する
+* [ ] そのダミーデータを引数に `f04_gen` を呼び出し、その結果を `f05_archive` に渡す一連の流れを記述する
+* [ ] ローカル環境で `python backend/main.py` を実行し、エラーなく動作することを確認する
+
+#### 6. Slack Bot (Entrance) の準備
+
+* [ ] Slackアプリ（Bot）を作成し、トークンを取得する
+* [ ] メンションやボタン押下をトリガーにして、上記の `main.py` が起動する仕組みを実装する（※まずはローカルで動作すればOK）
 
 
