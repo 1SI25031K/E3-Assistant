@@ -1,11 +1,11 @@
-# Slacker Project - Developer Guide 
+# Slacker 
 
 ## 1. プロジェクト概要
 **Slacker**は、スタートアップチームの「具体性の欠如」と「連携不全」を解決するためのAIアシスタントシステムである。
 
 ---
 
-## 2. チーム構成と担当領域 (Roles)
+## 2. チーム構成と担当領域
 
 | ID | 機能モジュール | 担当者 | 役割 (Role) | 責務 (Responsibility) |
 |:--|:---|:---|:---|:---|
@@ -18,7 +18,7 @@
 
 ---
 
-## 3. ディレクトリ構造 (Directory Structure)
+## 3. ディレクトリ構造
 
 ```text
 Slacker/
@@ -54,7 +54,7 @@ Slacker/
 | `f05_archive/` | `logger.py` | 最終結果を `local_history.jsonl` に追記保存。 |
 | `f06_notify/` | `notifier.py` | `FeedbackResponse` をSlack APIで送信。 |
 
-## 4. インターフェース定義 (The Contract)
+## 4. インターフェース定義
 各モジュール間のデータ受け渡しは backend/common/models.py に定義されたクラスのインスタンスで行う。
 
 ### Contract: 入力系
