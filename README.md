@@ -24,17 +24,23 @@
 Slacker/
 ├── README.md           # 本ドキュメント
 ├── .env                # トークン・設定値 (宮本が配布)
-├── main.py             # パイプライン全体の実行エントリーポイント
 └── backend/
-    ├── common/         # 共通定義
-    │   └── models.py   # データクラス (SlackMessage, FeedbackResponse)
-    ├── f01_listener/   # [近藤]
-    ├── f02_filter/     # [蘇木]
-    ├── f03_db/         # [近藤]
-    ├── f04_gen/        # [宮本]
-    │       └──generater.py
-    ├── f05_archive/    # [宮本]
-    └── f06_notify/     # [近藤]
+　　　　　├── main.py             # プロジェクト全体の「指揮者」。各モジュールを呼び出し実行する。
+　　　　　├── common/             # チーム全員が使う「共通の道具箱」。
+　　　　　│   └── models.py       # データクラス定義 (SlackMessage, FeedbackResponse)
+　　　　　├── f01_listener/       # [F-01] 入口：SlackからのWebhookを受け取る。
+　　　　　│   ├── server.py       # 外部（Slack）からの通信を待ち受けるサーバー
+　　　　　│   └── listener.py     # 受信した複雑なデータを「SlackMessage」型に変換する
+　　　　　├── f02_filter/         # [F-02] 判定：メッセージが「質問」か「雑談」かを分ける。
+　　　　　│   └── filter.py       # 判定ロジックの実装本体
+　　　　　├── f03_db/             # [F-03] 保存/読込：データをDB（またはJSONL）に書き込む。
+　　　　　│   └── database.py     # データの保存、ステータス更新の実行
+　　　　　├── f04_gen/            # [F-04] 心臓部：AI（Gemini）がフィードバックを作る。
+　　　　　│   └── generator.py    # Gemini APIを呼び出す生成ロジック
+　　　　　├── f05_archive/        # [F-05] 記録：将来の学習用に全てのログを保存する。
+　　　　　│   └── logger.py       # ログファイル（JSONL）への書き込み処理
+　　　　　└── f06_notify/         # [F-06] 出口：完成したフィードバックをSlackに送り返す。
+    　　　　　　　　　└── notifier.py     # Slack APIを使用してメッセージを送信する
 ```
 
 ## 4. インターフェース定義 (The Contract)
