@@ -1,50 +1,61 @@
 
 import sys
 import os
-import json
+from dotenv import load_dotenv
 
-# パスを通すおまじない
+# パス設定
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from f04_generator.main import generate_feedback
+from backend.common.models import SlackMessage
+from backend.f03_db.database import save_to_db
+from backend.f04_gen.generater import generate_feedback
 from backend.f05_archive.logger import archive_process
 
-def main():
-    print(" === Slacker F-04/05 Standalone Test Start === ")
+load_dotenv()
 
-    # 1. 【重要】Contract B のダミーデータ (コウタさんから渡ってくるはずのデータ)
-    # 画像の仕様通りにここで定義する。「他人の完成」を待たずにここを変えればテストし放題。
-    mock_input_from_f03 = {
-        "event_id": "Ev12345678",
-        "user_id": "U00000000",
-        "text_content": "助けてください",
-        "intent_tag": "consultation",     # ここを変えて挙動を確認する
-        "status": "pending_generation"
-    }
-    
-    # 辞書をJSON文字列に変換 (通信を模倣)
-    json_b = json.dumps(mock_input_from_f03, ensure_ascii=False)
-    print(f"\n📥 [Input] Data from F-03 (Mock):\n{json_b}")
+def run_pipeline(input_message: SlackMessage):
+    """
+    外部(F-01)からSlackMessageを受け取り、
+    F-03 -> F-04 -> F-05 のパイプラインを実行する指揮者関数。
+    """
+    print(f"🚀Pipeline Triggered for Event: {input_message.event_id}")
 
-    # 2. F-04 (Generator) を実行
-    print("\n⚙️ [Process] Calling F-04 (Generator)...")
-    try:
-        json_c = generate_feedback(json_b)
-        print(f"✅ F-04 Output:\n{json_c}")
-    except Exception as e:
-        print(f"❌ F-04 Error: {e}")
+    # [Step 1] Initial Save (F-03)
+    # まず「受信しました」という記録を残す
+    if not save_to_db(input_message):
+        print("❌ Pipeline Aborted: Failed to save initial data.")
         return
 
-    # 3. F-05 (Archive) を実行
-    print("\n💾 [Process] Calling F-05 (Archive)...")
-    try:
-        result = archive_process(json_c)
-        if result:
-            print("✅ F-05 Success: Data archived.")
-    except Exception as e:
-        print(f"❌ F-05 Error: {e}")
+    # [Step 2] Generate Answer (F-04)
+    # AIに回答を作らせる
+    print(f"⚙️ Calling F-04...")
+    feedback_response = generate_feedback(input_message)
+    
+    # [Step 3] Archive & Notify (F-05/F-06)
+    # 結果を保存し、完了とする
+    # ※本来の設計では F-06(Notify) は F-05 の後、または F-05 内で呼ばれるべきですが
+    #   今回は F-05 が DB更新を担当しているため、通知処理(F-06)もここに追加します。
+    #   (今回はシンプルに F-05 内で完結、またはここで F-06 を呼ぶ形にします)
+    
+    print(f"💾 Calling F-05...")
+    archive_process(feedback_response)
 
-    print("\n🏁 === Test Finished ===")
+    # ★追加: F-06 (Notify) を呼び出す
+    # F-06 はまだ main.py にインポートしていませんが、
+    # 完了後に通知を送る処理が必要です。
+    from backend.f06_notify.notifier import send_reply
+    print(f"📤 Calling F-06...")
+    send_reply(feedback_response)
 
+    print("🏁 Pipeline Finished.")
+
+# 開発用: このファイルを直接実行した時だけダミーデータで動く
 if __name__ == "__main__":
-    main()
+    dummy_msg = SlackMessage(
+        event_id="MANUAL_TEST_001",
+        user_id="U_ME",
+        text_content="手動テストです",
+        intent_tag="test",
+        status="pending"
+    )
+    run_pipeline(dummy_msg)

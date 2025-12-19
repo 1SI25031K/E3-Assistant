@@ -1,42 +1,46 @@
 # backend/f05_archive/main.py
-import json
-import datetime
-import os
+from backend.common.models import FeedbackResponse
+from backend.f03_db.database import update_feedback
 
-# F-04 (Generator) から渡ってくるはずのデータ（ダミー）
-mock_input_from_f04 = """
-{
-  "source": "slack",
-  "event_id": "evt_123456789",
-  "user_id": "U0123456",
-  "text_content": "明日のMTG資料はどこですか？",
-  "intent_tag": "question",
-  "status": "processed",
-  "target_user_id": "U0123456",
-  "feedback_summary": "【自動応答】Wikiをご確認ください。",
-  "original_event_id": "evt_123456789"
-}
-"""
-
-def archive_process(json_str):
-    data = json.loads(json_str)
+def archive_process(response: FeedbackResponse) -> bool:
+    """
+    [F-05] アーカイブ処理 (DynamoDBへの最終ステータス記録)
     
-    # アーカイブ時刻を付与
-    data["archived_at"] = datetime.datetime.now().isoformat()
-
-    # ローカルファイルに追記保存 (JSON Lines形式)
-    # これが簡易DBの代わりになります
-    log_file = "local_history.jsonl"
+    F-04(Generator)から受け取った回答データ(FeedbackResponse)を、
+    F-03(Database)の機能を使って永続化する。
     
-    try:
-        with open(log_file, "a", encoding="utf-8") as f:
-            f.write(json.dumps(data, ensure_ascii=False) + "\n")
+    Args:
+        response (FeedbackResponse): AI生成結果を含んだ完了データ
         
-        print(f"--- F-05: Data archived to {log_file} ---")
+    Returns:
+        bool: アーカイブ(DB更新)が成功すればTrue
+    """
+    print(f"--- 💾 [F-05] Archiving Process Start: {response.event_id} ---")
+    
+    # 1. DB更新処理を呼び出す (F-03へ委譲)
+    # 自分で保存処理を書くのではなく、database.py の update_feedback を使う
+    success = update_feedback(response)
+    
+    if success:
+        print(f"✅ Archive Complete: Event {response.event_id} is now closed.")
         return True
-        
-    except Exception as e:
-        print(f"Error archiving data: {e}")
+    else:
+        print(f"❌ Archive Failed: Could not update DB for {response.event_id}")
+        return False
 
+# 🧪 単体テスト用ブロック
 if __name__ == "__main__":
-    archive_process(mock_input_from_f04)
+    # テスト用のダミー完了データを作成
+    test_response = FeedbackResponse(
+        event_id="TEST_ARCHIVE_001",
+        target_user_id="U_TEST_ARCHIVER",
+        feedback_summary="【F-05テスト】アーカイブ機能の正常性を確認しました。",
+        status="complete"
+    )
+    
+    # ※注意: 単体テストでこれを成功させるには、
+    # 先にDynamoDB上に "TEST_ARCHIVE_001" というIDを持つデータが存在している必要があります。
+    # (update_itemは既存データがないと更新できない場合があるため)
+    
+    # 実行
+    archive_process(test_response)
