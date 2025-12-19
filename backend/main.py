@@ -7,7 +7,7 @@ import json
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from f04_generator.main import generate_feedback
-from f05_archive.main import archive_process
+from backend.f05_archive.logger import archive_process
 
 def main():
     print(" === Slacker F-04/05 Standalone Test Start === ")
