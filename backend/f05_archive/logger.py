@@ -1,6 +1,6 @@
 # backend/f05_archive/main.py
 from backend.common.models import FeedbackResponse
-from backend.f03_db.database import update_feedback
+from backend.f03_db.database import save_to_db
 
 def archive_process(response: FeedbackResponse) -> bool:
     """
@@ -19,7 +19,7 @@ def archive_process(response: FeedbackResponse) -> bool:
     
     # 1. DB更新処理を呼び出す (F-03へ委譲)
     # 自分で保存処理を書くのではなく、database.py の update_feedback を使う
-    success = update_feedback(response)
+    success = save_to_db(response)
     
     if success:
         print(f"✅ Archive Complete: Event {response.event_id} is now closed.")
