@@ -1,64 +1,85 @@
-import json
+import sys
+import os
+import google.generativeai as genai
+from dotenv import load_dotenv
 
-# ==========================================
-# 1. ユウリさん(F-01)から来るはずのデータをシミュレーション
-# （本来はここがネットワーク経由で送られてきますが、今は手書きで用意します）
-# ==========================================
-mock_input_data = {
-    "source": "slack",
-    "event_id": "evt_123456789",
-    "user_id": "U12345",
-    "text_content": "来週のシフトについて質問があります",  # ユーザーの投稿内容
-    "timestamp": "2023-12-05T10:00:00Z"
-}
+# プロジェクトのルートディレクトリをパスに追加
+current_dir = os.path.dirname(os.path.abspath(__file__))
+root_dir = os.path.abspath(os.path.join(current_dir, "../../"))
+sys.path.append(root_dir)
 
-# ==========================================
-# 2. コウタさん(F-02)の仕事: 意図判定ロジック
-# ==========================================
-def determine_intent(text):
+# 🔌 接続チェック
+from backend.common.models import SlackMessage
+
+# .envを読み込む
+env_path = os.path.join(root_dir, ".env")
+load_dotenv(env_path)
+
+# APIキー設定
+api_key = os.getenv("GEMINI_API_KEY")
+if not api_key:
+    print(f"⚠️ 警告: {env_path} に GEMINI_API_KEY が見つかりません！")
+else:
+    genai.configure(api_key=api_key)
+
+def ask_gemini_is_question(text: str) -> bool:
     """
-    テキストの内容を見て、intent_tag を決定する単純なロジック
+    Gemini API (google-generativeai) を使って判定する
     """
-    # 「？」や「質問」という言葉があれば "question" (質問) とみなす
-    if "?" in text or "質問" in text:
-        return "question"
-    # それ以外は "chat" (雑談) とする
-    else:
-        return "chat"
+    if not api_key:
+        return False
 
-# ==========================================
-# 3. メイン処理: データの加工と確認
-# ==========================================
-def main():
-    print("--- 📥 [F-01] からデータを受信しました ---")
-    print(json.dumps(mock_input_data, indent=2, ensure_ascii=False))
+    try:
+        # ★ここを修正しました！リストにあった最新モデルを指定
+        model = genai.GenerativeModel("gemini-2.5-flash")
 
-    # データをコピーして新しい箱を用意（元のデータを壊さないため）
-    processed_data = mock_input_data.copy()
+        prompt = f"""
+        あなたは社内Slackの優秀なアシスタントです。
+        以下のメッセージが「技術的な質問」や「回答が必要な問い合わせ」であれば 'YES' を、
+        単なる「雑談」や「挨拶」、「報告」であれば 'NO' を返してください。
+        
+        メッセージ: "{text}"
+        
+        回答 (YES または NO のみ):
+        """
 
-    # 意図判定を実行してタグ付け
-    tag = determine_intent(processed_data["text_content"])
-    processed_data["intent_tag"] = tag
+        # AIに聞く
+        response = model.generate_content(prompt)
+        answer = response.text.strip().upper()
+        
+        print(f"🤖 [AI判定] Answer: {answer} | Text: {text}")
+        return "YES" in answer
 
-    # ★ここが重要: READMEの仕様通りにデータが育っているか確認
-    print("\n--- ⚙️ [F-02] 意図判定を実行中... ---")
-    print(f"判定結果: {tag}")
+    except Exception as e:
+        print(f"❌ Gemini API Error: {e}")
+        return False
 
-    print("\n--- 📤 [F-03] へ渡すデータ (完成形) ---")
-    print(json.dumps(processed_data, indent=2, ensure_ascii=False))
-
-    # バケツリレーの整合性チェック
-    required_keys = ["source", "user_id", "text_content", "intent_tag"]
-    missing_keys = [key for key in required_keys if key not in processed_data]
+def analyze_intent(message: SlackMessage) -> SlackMessage:
+    text = message.text_content
     
-    if not missing_keys:
-        print("\n✅ OK: データ構造はREADMEの仕様と一致しています。")
+    # AI判定を実行
+    is_question = ask_gemini_is_question(text)
+
+    if is_question:
+        message.intent_tag = "question"
+        message.status = "processing"
+        print(f"🔍 [Filter] Intent detected: QUESTION (User: {message.user_id})")
     else:
-        print(f"\n❌ NG: 以下のキーが足りません -> {missing_keys}")
+        message.intent_tag = "chat"
+        message.status = "ignored"
+        print(f"💤 [Filter] Intent detected: CHAT (User: {message.user_id})")
 
-        # ★★★ ここを追加してください！ ★★★
-    # データをJSON形式の文字にして、呼び出し元に「返す」
-    return json.dumps(processed_data, ensure_ascii=False)
+    return message
 
+# --- 動作確認用 ---
 if __name__ == "__main__":
-    main()
+    test_msgs = [
+        SlackMessage(event_id="1", user_id="U1", text_content="Pythonでリストをソートする方法は？"),
+        SlackMessage(event_id="2", user_id="U2", text_content="おはようございます！"),
+        SlackMessage(event_id="3", user_id="U3", text_content="Dockerのビルドエラーが解決できません。"),
+    ]
+    
+    print(f"--- AI判定テスト開始 (Key check: {'OK' if api_key else 'NG'}) ---")
+    for msg in test_msgs:
+        analyze_intent(msg)
+        print("-" * 20)
