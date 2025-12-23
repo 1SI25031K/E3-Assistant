@@ -11,7 +11,7 @@ from backend.f02_filter.filter import analyze_intent       # F-02
 from backend.f03_db.database import save_to_db             # F-03
 from backend.f04_gen.generater import generate_feedback    # F-04
 from backend.f05_archive.logger import archive_process     # F-05
-from backend.f06_notify.notifier import send_reply         # F-06
+from backend.f06_notify.notifier import send_reply                    # F-06
 
 def run_pipeline(input_message: SlackMessage):
     """
