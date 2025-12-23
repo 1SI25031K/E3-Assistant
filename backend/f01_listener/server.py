@@ -3,13 +3,12 @@ import sys
 import logging
 from flask import Flask, request, jsonify
 from slack_sdk.signature import SignatureVerifier
+from backend.common.models import SlackMessage
+# Orchestrator (backend/main.py) をインポート
+from backend.main import run_pipeline
 
 # プロジェクトルートへのパス設定
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/../../")
-
-from backend.common.models import SlackMessage
-# さっき改造した main.py の関数をインポート
-from backend.notifier import run_pipeline
 
 app = Flask(__name__)
 
