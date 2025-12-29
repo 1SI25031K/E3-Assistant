@@ -48,3 +48,5 @@ def save_to_db(data: Union[SlackMessage, FeedbackResponse]) -> bool:
     except Exception as e:
         print(f"Unexpected Error: {e}")
         return False
+
+update_feedback = save_to_db  # エイリアス
