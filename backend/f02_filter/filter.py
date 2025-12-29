@@ -1,59 +1,74 @@
-import sys
 import os
-
-# プロジェクトのルートディレクトリをパスに追加（モジュール読み込み用）
-sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/../../")
-
+import logging
+import google.generativeai as genai
+from dotenv import load_dotenv  # .envを読み込むための道具
 from backend.common.models import SlackMessage
 
-def analyze_intent(message: SlackMessage) -> SlackMessage:
-    
-    print(f"--- [F-02] Analyzing Intent for: {message.event_id} ---")
-    
-    # 1. テキストの正規化
-    # 全角スペースを半角にしたり、小文字に統一したりして、判定ミスを減らす
-    text = message.text_content.strip().lower()
-    
-    # 2. ルールベースによる判定ロジック
-    # 本来はAI(BERT等)を使う場所だが、開発初期は「キーワード判定」が最も速くて確実。
-    
-    # パターンA: 質問 (Question)
-    # 「？」や具体的な質問ワードが含まれる場合
-    if any(word in text for word in ["?", "？", "教えて", "どうすれば", "error", "エラー", "実装"]):
-        new_tag = "question"
-        
-    # パターンB: 相談 (Consultation)
-    # 「相談」「悩み」「助けて」など、少し深刻または長めの議論が必要な場合
-    elif any(word in text for word in ["相談", "悩み", "聞いて", "困って", "help"]):
-        new_tag = "consultation"
-        
-    # パターンC: 雑談 (Chat)
-    # 上記に当てはまらないものは、とりあえず雑談として扱う
-    else:
-        new_tag = "chat"
+# ロガー設定
+logger = logging.getLogger(__name__)
 
-    # 3. 結果の適用
-    # オブジェクトの中身（タグ）を書き換える
-    message.intent_tag = new_tag
-    
-    print(f"Intent determined: {new_tag}")
-    
-    # 加工したオブジェクトを次の工程（F-03, F-04）へ返す
-    return message
+# ここで念のため .env を読み込みます
+load_dotenv()
 
-# 🧪 単体テスト用
-if __name__ == "__main__":
-    # テストデータ
-    test_msg = SlackMessage(
-        event_id="TEST_FILTER_001",
-        user_id="U_TEST",
-        text_content="Pythonの環境構築でエラーが出ます。教えてください。",
-        intent_tag="tbd", # 最初は不明(To Be Determined)
-        status="pending"
-    )
+def analyze_intent(input_message: SlackMessage) -> SlackMessage:
+    """
+    [F-02] Geminiを使って、メッセージが「質問」か「雑談」かを判定する
+    """
+    logger.info(f"--- [F-02] Analyzing Intent for: {input_message.event_id} ---")
+
+    text = input_message.text_content
     
-    # 実行
-    result = analyze_intent(test_msg)
-    
-    print(f"入力テキスト: {test_msg.text_content}")
-    print(f"判定結果: {result.intent_tag}")
+    # ▼▼▼【ここが修正のキモ！】▼▼▼
+    # プログラムの最初ではなく、「この関数が呼ばれた瞬間」にキーを取得します。
+    # これなら読み込み順序に関係なく確実に取得できます。
+    api_key = os.environ.get("GEMINI_API_KEY")
+    # ▲▲▲ ------------------------
+
+    # APIキーがない場合はキーワード判定に逃げる
+    if not api_key:
+        logger.warning("⚠️ API Key not found. Fallback to keyword matching.")
+        if "?" in text or "教えて" in text or "質問" in text or "コード" in text:
+            input_message.intent_tag = "question"
+        else:
+            input_message.intent_tag = "chat"
+        return input_message
+
+    try:
+        # Geminiの設定
+        genai.configure(api_key=api_key)
+        
+        # 軽量モデルを使用
+        model = genai.GenerativeModel("gemini-2.5-flash")
+
+        # プロンプト（AIへの指示書）
+        prompt = f"""
+        あなたはSlackボットの「意図判定」システムです。
+        以下のメッセージを読み、それが「回答が必要な質問・相談・エラー報告」か「ただの雑談・挨拶」か分類してください。
+        
+        メッセージ: "{text}"
+        
+        出力ルール:
+        - 質問、作業依頼、エラー報告なら "question" とだけ出力してください。
+        - 挨拶、相槌、独り言なら "chat" とだけ出力してください。
+        - 余計な説明は一切不要です。単語一つだけを返してください。
+        """
+
+        response = model.generate_content(prompt)
+        intent = response.text.strip().lower()
+        
+        # 結果に応じたタグ付け
+        if "question" in intent:
+            final_tag = "question"
+        else:
+            final_tag = "chat"
+
+        logger.info(f"🤖 AI Judgment: '{text}' => {final_tag}")
+
+        input_message.intent_tag = final_tag
+        return input_message
+
+    except Exception as e:
+        logger.error(f"❌ Intent Analysis Error: {e}")
+        # エラー時は安全策として question にしておく
+        input_message.intent_tag = "question"
+        return input_message
