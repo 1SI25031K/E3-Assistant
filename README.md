@@ -11,10 +11,10 @@
 |:--|:---|:---|:---|:---|
 | **F-01** | **Listener** | **ユウリ** | I/O (Input) | SlackからのWebhook受信、Payloadの正規化 |
 | **F-02** | **Filter** | **コウタ** | Filter | ユーザー意図の判定 (Intent Classification) |
-| **F-03** | **Persistence** | **コウタ** | DB | データの永続化、ステータス管理 |
+| **F-03** | **Persistence** | **コウセイ** | DB | データの永続化、ステータス管理 |
 | **F-04** | **Gen (Core)** | **コウセイ** | Logic | Gemini API を使用したフィードバック生成 |
 | **F-05** | **Archive** | **コウセイ** | Archive | AWS DB への全ログ蓄積実装 |
-| **F-06** | **Notify** | **ユウリ** | I/O (Output) | Slackへのレスポンス送信 |
+| **F-06** | **Notify** | **コウセイ** | I/O (Output) | Slackへのレスポンス送信 |
 
 ---
 
