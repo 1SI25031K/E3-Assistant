@@ -173,9 +173,8 @@ ngrokを卒業し、24時間稼働するサーバーへ移行します。
 * **[共通] サーバー環境の Docker 化**
 * `Dockerfile` を作成し、ローカル環境（Python 3.12）をそのままクラウドへ持ち込めるようにパッケージングする。
 
-* **[AWSの場合] App Runner または Lambda + API Gateway の選択**
-* **App Runner:** Flaskをそのまま動かすなら最も簡単。
-* **Lambda:** 実行時のみ課金されるため安価だが、Flaskを動かすには `mangum` などのアダプタが必要。
+* **[AWSの場合] App Runner**
+* **App Runner:** Flaskをそのまま動かす。
 
 * **[共通] .env（秘匿情報）の移行**
 * AWS Secrets Manager や、クラウド側の環境変数設定画面に API KEY 類を移植する。
