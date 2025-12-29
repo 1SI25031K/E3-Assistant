@@ -20,7 +20,7 @@ from backend.f03_db.database import save_to_db             # F-03
 try:
     from backend.f04_gen.generator import generate_feedback # F-04
 except ImportError:
-    from backend.f04_gen.generater import generate_feedback # 綴り間違い対策
+    from backend.f04_gen.generator import generate_feedback # 綴り間違い対策
 
 from backend.f05_archive.logger import archive_process     # F-05
 from backend.f06_notify.notifier import send_reply         # F-06
