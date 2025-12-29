@@ -16,7 +16,7 @@ def generate_feedback(message: SlackMessage) -> FeedbackResponse:
     """
     [F-04] AIフィードバック生成 (google-genai 新ライブラリ対応版)
     """
-    print(f"--- 🧠 [F-04] Gemini Thinking... (Intent: {message.intent_tag}) ---")
+    print(f"--- [F-04] Gemini Thinking... (Intent: {message.intent_tag}) ---")
 
     try:
         # 3. プロンプト（命令文）の構築
@@ -67,7 +67,7 @@ def generate_feedback(message: SlackMessage) -> FeedbackResponse:
 
 # 🧪 単体テスト用
 if __name__ == "__main__":
-    print("🚀 F-04 Gemini Connection Test (New Client)")
+    print("F-04 Gemini Connection Test (New Client)")
     
     # テストデータ
     test_msg = SlackMessage(
@@ -81,7 +81,7 @@ if __name__ == "__main__":
     # 実行
     result = generate_feedback(test_msg)
     
-    print("\n🤖 生成された回答:")
+    print("\n生成された回答:")
     print("--------------------------------------------------")
     print(result.feedback_summary)
     print("--------------------------------------------------")
