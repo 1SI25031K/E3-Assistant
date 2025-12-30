@@ -1,7 +1,7 @@
-# Slacker 
+# E3-Assistant
 
 ## 1. プロジェクト概要
-**Slacker**は、スタートアップチームの「具体性の欠如」と「連携不全」を解決するためのAIアシスタントシステムである。
+**E3-Assistant**は、スタートアップチームの「具体性の欠如」と「連携不全」を解決するためのAIアシスタントシステムである。
 
 ---
 
@@ -152,46 +152,19 @@ ENVファイルの活用: トークン等の秘匿情報は .env に記述し、
 
 
 
-＜＜12/29追記＞＞
+[12/30 追記]
+
+### 追加タスク分配表
+
+| カテゴリ | タスク内容 | 担当者 | 備考 |
+| :--- | :--- | :--- | :--- |
+| **Slack設定** | Event Subscriptionsの変更 (`message.channels`の追加) | **コウタ** | メンションなしでメッセージを拾うための権限変更 |
+| **F-01 Listen** | `server.py` の修正。`app_mention` 以外のイベント受信対応 | **ユウリ** | `event["type"] == "message"` の解析ロジック追加 |
+| **F-02 Filter** | 質問キーワード（"?", "？", "ですか"）の検知ロジック実装 | **コウタ** | `any()` を用いたキーワードマッチングの実装 |
+| **F-03〜F-05** | パイプライン統合とAWS DynamoDB接続の最終調整 | **コウセイ** | 既存コードのクラウド環境への最適化 |
+| **Infra** | `Dockerfile` の作成と AWS App Runner へのデプロイ | **コウセイ** | ngrokを廃止し、永続的なURLを発行 |
+| **Security** | Bot IDによる無限ループ除外ロジックの厳格化 | **ユウリ** | 自分の発言に反応しないためのガードレール実装 |
+| **Config** | `.env` 情報の AWS Secrets Manager への移行 | **コウセイ** | セキュアな環境変数管理 |
 
 
-#### 1. 反応ロジックの強化（メンションなし起動）
-
-* **[Slack API設定] `Event Subscriptions` の変更**
-* `app_mention` だけでなく、`message.channels` イベントを購読するよう変更する。
-
-* **[F-01 Listener] `server.py` の修正**
-* メンションだけでなく、通常のメッセージイベント（`type: "message"`）も拾えるようにコードを拡張する。
-
-* **[F-02 Filter] `filter.py` の判定キーワード追加**
-* 指示のあった「"?", "？", "ですか"」などの文字列が含まれている場合のみ `status="pending"` とし、それ以外は無視するロジックを組む。
-
-#### 2. クラウド環境（AWS / Oracle）へのデプロイ準備
-
-ngrokを卒業し、24時間稼働するサーバーへ移行します。
-
-* **[共通] サーバー環境の Docker 化**
-* `Dockerfile` を作成し、ローカル環境（Python 3.12）をそのままクラウドへ持ち込めるようにパッケージングする。
-
-* **[AWSの場合] App Runner**
-* **App Runner:** Flaskをそのまま動かす。
-
-* **[共通] .env（秘匿情報）の移行**
-* AWS Secrets Manager や、クラウド側の環境変数設定画面に API KEY 類を移植する。
-
-#### 3. ループ防止
-
-* **[F-01] Bot ID フィルタリングの厳格化**
-* `event.get("bot_id")` が存在する場合は、即座に `return` する処理を徹底する。
-
-担当者,タスクカテゴリ,具体的なタスク内容,関連ファイル
-コウセイ (Lead),Cloud Infra,AWS App Runner / Lambda へのデプロイ環境構築,backend/ 全体
-,Packaging,Dockerfile の作成と環境変数のクラウド移行,"Dockerfile, .env"
-,Integration,パイプライン全体の統合とエラーハンドリング強化,backend/main.py
-コウタ (Beginner),Slack API,イベント購読を message.channels に変更（設定作業）,Slack API Console
-,Filter Logic,「?」「ですか」等のキーワード判定ロジックの実装,f02_filter/filter.py
-,DB Design,判定キーワードを管理するデータ項目の見直し,f03_db/database.py
-ユウリ (Beginner),Listener,メンション以外の通常メッセージを取得できるよう拡張,f01_listener/server.py
-,Security,Bot ID フィルタリングによる無限ループ防止の実装,f01_listener/server.py
-,Notify,AI返信が適切なチャンネル/ユーザーに届くかの検証,f06_notify/notifier.py
 
