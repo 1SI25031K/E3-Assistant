@@ -184,3 +184,14 @@ ngrokを卒業し、24時間稼働するサーバーへ移行します。
 * **[F-01] Bot ID フィルタリングの厳格化**
 * `event.get("bot_id")` が存在する場合は、即座に `return` する処理を徹底する。
 
+担当者,タスクカテゴリ,具体的なタスク内容,関連ファイル
+コウセイ (Lead),Cloud Infra,AWS App Runner / Lambda へのデプロイ環境構築,backend/ 全体
+,Packaging,Dockerfile の作成と環境変数のクラウド移行,"Dockerfile, .env"
+,Integration,パイプライン全体の統合とエラーハンドリング強化,backend/main.py
+コウタ (Beginner),Slack API,イベント購読を message.channels に変更（設定作業）,Slack API Console
+,Filter Logic,「?」「ですか」等のキーワード判定ロジックの実装,f02_filter/filter.py
+,DB Design,判定キーワードを管理するデータ項目の見直し,f03_db/database.py
+ユウリ (Beginner),Listener,メンション以外の通常メッセージを取得できるよう拡張,f01_listener/server.py
+,Security,Bot ID フィルタリングによる無限ループ防止の実装,f01_listener/server.py
+,Notify,AI返信が適切なチャンネル/ユーザーに届くかの検証,f06_notify/notifier.py
+
