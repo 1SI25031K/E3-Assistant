@@ -1,83 +1,111 @@
 import os
 import sys
 import threading
-from dotenv import load_dotenv  # ★これを追加！
+import logging
+from dotenv import load_dotenv
 
 # プロジェクトルートへのパス設定
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/../../")
 
-# ★これを追加！ (.envファイルから環境変数を読み込む)
+# 環境変数の読み込み
 load_dotenv()
 
-import logging
 from flask import Flask, request, jsonify
 from slack_sdk.signature import SignatureVerifier
+
+# Contract準拠
 from backend.common.models import SlackMessage
 from backend.main import run_pipeline
 
 app = Flask(__name__)
 
-# 環境変数が読み込まれているかチェック
-if not os.environ.get("SLACK_SIGNING_SECRET"):
-    print("❌ Error: SLACK_SIGNING_SECRET が見つかりません。.envを確認してください。")
+# ---------------------------------------------------------
+# 設定値のチェック
+# ---------------------------------------------------------
+SLACK_SIGNING_SECRET = os.getenv("SLACK_SIGNING_SECRET")
+TARGET_CHANNEL_ID = os.getenv("TARGET_CHANNEL_ID")
+
+if not SLACK_SIGNING_SECRET:
+    print("❌ Error: SLACK_SIGNING_SECRET が見つかりません。")
     sys.exit(1)
 
+if not TARGET_CHANNEL_ID:
+    print("❌ Error: TARGET_CHANNEL_ID が見つかりません。.envに設定してください。")
+    # 起動はさせますが、ログで警告します
+    
 # 署名検証器
-verifier = SignatureVerifier(os.environ["SLACK_SIGNING_SECRET"])
+verifier = SignatureVerifier(SLACK_SIGNING_SECRET)
 
 @app.route("/slack/events", methods=["POST"])
 def slack_events():
     """
-    SlackからのWebhookを受け取る
+    [F-01] Slack Event Listener (Active Monitoring Mode)
+    指定チャンネルの全メッセージを監視し、フィルタリングしてパイプラインへ流す
     """
-    # 1. 署名検証
+    # 1. 署名検証 (Security First)
     if not verifier.is_valid_request(request.get_data(), request.headers):
         return jsonify({"status": "invalid_request"}), 403
 
     data = request.json
 
-    # 2. URL検証
+    # 2. URL検証 (Slack API仕様)
     if "type" in data and data["type"] == "url_verification":
         return jsonify({"challenge": data["challenge"]})
     
-    # 再送対策
+    # 再送対策 (ヘッダーチェック)
     if request.headers.get("X-Slack-Retry-Num"):
-        print("♻️ Ignoring Retry request from Slack")
+        # ログがうるさくなるのでprintはコメントアウトまたはdebugレベル推奨
+        # print("♻️ Ignoring Retry request from Slack")
         return jsonify({"status": "ignored_retry"})
 
-    # 3. イベント処理
+    # 3. イベント処理本体
     if "event" in data:
         event = data["event"]
-        
-        if "bot_id" in event:
-            return jsonify({"status": "ignored_bot_message"})
-
-        user_id = event.get("user")
-        text = event.get("text")
-        ts = event.get("ts")
         channel_id = event.get("channel")
+        user_id = event.get("user")
+        text = event.get("text", "")
+        ts = event.get("ts")
+        subtype = event.get("subtype")
 
-        if not user_id or not text:
-            return jsonify({"status": "ignored_no_content"})
+        # --- 🛡️ フィルタリング・ロジック (Gatekeeper) ---
 
-        print(f"👂 [F-01] Message received from {user_id}: {text}")
+        # A. チャンネルチェック: 指定されたチャンネル以外は無視
+        # (これをしないと、Botがいる全チャンネルで反応してしまいます)
+        if channel_id != TARGET_CHANNEL_ID:
+            return jsonify({"status": "ignored_other_channel"})
 
-        # SlackMessage生成
+        # B. Botチェック: 自分自身や他のBotのメッセージは無視
+        # subtypeが 'bot_message' の場合や、bot_idが存在する場合はスキップ
+        if "bot_id" in event or subtype == "bot_message":
+            return jsonify({"status": "ignored_bot_message"})
+        
+        # C. コンテンツチェック: テキストがないイベント（画像のアップロードのみ等）は一旦無視
+        if not text:
+            return jsonify({"status": "ignored_no_text"})
+
+        # ------------------------------------------------
+
+        print(f"👂 [F-01] Valid Message detected: {text[:30]}...")
+
+        # 4. Contract A: SlackMessage生成
+        # まだ質問かどうかわからないので、intent_tag="pending" で初期化
         input_message = SlackMessage(
             event_id=f"evt_{ts}",
             user_id=user_id,
             channel_id=channel_id,
             text_content=text,
-            intent_tag="tbd",
-            status="pending"
+            intent_tag="pending",  # F-02で判定されるため保留
+            status="received"
         )
 
-        # 4. パイプラインを別スレッドで起動
-        x = threading.Thread(target=run_pipeline, args=(input_message,))
-        x.start()
+        # 5. パイプライン起動 (非同期)
+        # サーバーは即座にSlackへ200 OKを返す必要があるため、処理は別スレッドへ
+        process_thread = threading.Thread(target=run_pipeline, args=(input_message,))
+        process_thread.start()
     
     return jsonify({"status": "ok"})
 
 if __name__ == "__main__":
-    print("🚀 Slacker Listener Server running on port 3000...")
+    print(f"🚀 Slacker Listener running on port 3000")
+    print(f"👀 Watching Channel ID: {TARGET_CHANNEL_ID}")
     app.run(port=3000)
