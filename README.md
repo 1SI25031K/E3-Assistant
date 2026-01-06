@@ -167,7 +167,7 @@ ENVファイルの活用: トークン等の秘匿情報は .env に記述し、
 | **Config** | `.env` 情報の AWS Secrets Manager への移行 | **コウセイ** | セキュアな環境変数管理 |
 
 ```mermaid
-flowchart TD
+graph TD
     %% 外部プラットフォーム
     subgraph Slack_Workspace ["Slack API (External)"]
         UserEvent([ユーザーの投稿]) 
