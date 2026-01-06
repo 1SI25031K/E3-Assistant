@@ -167,4 +167,60 @@ ENVファイルの活用: トークン等の秘匿情報は .env に記述し、
 | **Config** | `.env` 情報の AWS Secrets Manager への移行 | **コウセイ** | セキュアな環境変数管理 |
 
 
+graph TD
+    %% 外部プラットフォーム
+    subgraph Slack_Workspace ["Slack API (External)"]
+        UserEvent([ユーザーの投稿]) 
+        BotNotice([Botからのフィードバック通知])
+    end
+
+    %% バックエンド全体
+    subgraph Slacker_Backend ["backend/ (Python Logic)"]
+        
+        %% データクラス（設計の核）
+        subgraph Models ["common/models.py"]
+            SM[[SlackMessage Class]]
+            FR[[FeedbackResponse Class]]
+        end
+
+        %% 各機能モジュール
+        F01[<b>F-01: Listener</b><br/>server.py<br/><i>(Yuri)</i>]
+        F02[<b>F-02: Filter</b><br/>filter.py<br/><i>(Kota)</i>]
+        F03[<b>F-03: DB</b><br/>database.py<br/><i>(Kota)</i>]
+        F04[<b>F-04: Gen</b><br/>generator.py<br/><i>(Kosei)</i>]
+        F05[<b>F-05: Archive</b><br/>logger.py<br/><i>(Kosei)</i>]
+        F06[<b>F-06: Notify</b><br/>notifier.py<br/><i>(Yuri)</i>]
+
+        %% 処理フロー
+        UserEvent -->|HTTP POST / JSON| F01
+        F01 -->|① インスタンス化| SM
+        SM -->|② 意図判定| F02
+        F02 -->|③ 永続化依頼| F03
+        F03 -->|④ 生成フェーズへ| F04
+        
+        F04 -->|⑤ 変換| FR
+        FR -->|⑥ 通知実行| F06
+        FR -->|⑦ ログ記録| F05
+    end
+
+    %% インフラ・外部サービス
+    subgraph Cloud_Resources ["Managed Services"]
+        AWS_DB[(AWS RDS / DynamoDB)]
+        Gemini_API{Gemini API}
+    end
+
+    %% 外部連携
+    F03 <-->|boto3 / SQLAlchemy| AWS_DB
+    F04 <-->|google-generativeai| Gemini_API
+    F06 -->|Slack SDK| BotNotice
+
+    %% スタイル定義
+    style SM fill:#f9f,stroke:#333,stroke-width:2px
+    style FR fill:#bbf,stroke:#333,stroke-width:2px
+    style F04 fill:#dfd,stroke:#333,stroke-width:2px
+    style F01 fill:#fffce1,stroke:#333
+    style F02 fill:#fffce1,stroke:#333
+    style F03 fill:#fffce1,stroke:#333
+    style F06 fill:#fffce1,stroke:#333
+
 
