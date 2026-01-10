@@ -27,14 +27,18 @@ TARGET_CHANNEL_ID = os.getenv("TARGET_CHANNEL_ID")
 
 if not SLACK_SIGNING_SECRET:
     print("❌ Error: SLACK_SIGNING_SECRET が見つかりません。")
-    sys.exit(1)
+    # Lambda環境では環境変数が設定されている前提のため、ローカル開発時のみexit
+    if __name__ == "__main__":
+        sys.exit(1)
 
 if not TARGET_CHANNEL_ID:
     print("❌ Error: TARGET_CHANNEL_ID が見つかりません。.envに設定してください。")
     # 起動はさせますが、ログで警告します
-    
-# 署名検証器
-verifier = SignatureVerifier(SLACK_SIGNING_SECRET)
+
+# 署名検証器（SLACK_SIGNING_SECRETがない場合は後でエラーになる）
+verifier = None
+if SLACK_SIGNING_SECRET:
+    verifier = SignatureVerifier(SLACK_SIGNING_SECRET)
 
 @app.route("/slack/events", methods=["POST"])
 def slack_events():
@@ -43,6 +47,9 @@ def slack_events():
     指定チャンネルの全メッセージを監視し、フィルタリングしてパイプラインへ流す
     """
     # 1. 署名検証 (Security First)
+    if not verifier:
+        return jsonify({"status": "server_error", "message": "SLACK_SIGNING_SECRET not configured"}), 500
+    
     if not verifier.is_valid_request(request.get_data(), request.headers):
         return jsonify({"status": "invalid_request"}), 403
 

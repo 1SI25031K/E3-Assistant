@@ -1,0 +1,87 @@
+service: slacker
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: python3.11
+  region: ap-northeast-1
+  stage: ${opt:stage, 'dev'}
+  timeout: 30
+  memorySize: 512
+  environment:
+    # 環境変数は serverless.yml から設定するか、
+    # serverless.yml で ${env:VAR_NAME} として .env から読み込むことも可能
+    # デプロイ時は --env オプションや AWS Systems Manager Parameter Store などを使用
+    SLACK_SIGNING_SECRET: ${env:SLACK_SIGNING_SECRET, ''}
+    TARGET_CHANNEL_ID: ${env:TARGET_CHANNEL_ID, ''}
+    # その他の環境変数（必要に応じて追加）
+    # GEMINI_API_KEY: ${env:GEMINI_API_KEY, ''}
+    # AWS_REGION: ap-northeast-1
+
+  iam:
+    role:
+      statements:
+        # DynamoDBへのアクセス権限（F-03, F-05で使用する場合）
+        - Effect: Allow
+          Action:
+            - dynamodb:PutItem
+            - dynamodb:GetItem
+            - dynamodb:UpdateItem
+            - dynamodb:Query
+            - dynamodb:Scan
+          Resource: "arn:aws:dynamodb:${self:provider.region}:*:table/*"
+        # CloudWatch Logsへの書き込み権限
+        - Effect: Allow
+          Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+          Resource: "arn:aws:logs:${self:provider.region}:*:*"
+
+functions:
+  api:
+    handler: backend/lambda_handler.handler
+    events:
+      - httpApi:
+          path: /{proxy+}
+          method: ANY
+      - httpApi:
+          path: /
+          method: ANY
+
+plugins:
+  - serverless-python-requirements
+
+custom:
+  pythonRequirements:
+    # 1. Mac環境でのみDockerを使用する
+    dockerizePip: non-linux
+    
+    # 2. 【重要】所有権チェックのコンテナ起動を抑止するため、
+    #    キャッシュ機能をすべて物理的に無効化する
+    useStaticCache: false
+    useDownloadCache: false
+    
+    # 3. Apple SiliconからAWS(x86_64)用のバイナリを確実に作るためのイメージ
+    dockerImage: public.ecr.aws/sam/build-python3.11
+    
+    # 4. コンテナ起動時のアーキテクチャを明示的に指定（これを加えると安定する）
+    dockerRunCmdExtraArgs: ["--platform", "linux/amd64"]
+    
+    # 5. パッケージを軽量化
+    zip: true
+    slim: true
+
+package:
+  patterns:
+    - '!**'
+    - 'backend/**'
+    - '!node_modules/**'
+    - '!.git/**'
+    - '!.env'
+    - '!*.md'
+    - '!tools/**'
+    - '!app/**'
+    - '!local_history.jsonl'
+    - '!.serverless/**'

@@ -1,0 +1,9 @@
+{
+  "name": "slacker",
+  "version": "1.0.0",
+  "description": "Serverless Framework configuration for Slacker",
+  "devDependencies": {
+    "serverless": "^3.38.0",
+    "serverless-python-requirements": "^6.1.0"
+  }
+}

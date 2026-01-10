@@ -1,0 +1,17 @@
+# Flask関連
+flask>=2.3.0
+
+# Slack関連
+slack-sdk>=3.21.0
+
+# Google Generative AI
+google-generativeai>=0.3.0
+
+# AWS関連
+boto3>=1.28.0
+
+# 環境変数管理
+python-dotenv>=1.0.0
+
+# Lambda対応（mangumを優先使用、serverless-wsgiはフォールバック）
+mangum>=0.17.0
