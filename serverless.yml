@@ -1,0 +1,46 @@
+service: slacker
+
+provider:
+  name: aws
+  runtime: python3.12
+  region: ap-northeast-1
+  stage: dev
+  httpApi:
+    cors: true
+  # LambdaがDynamoDBを操作するための権限
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:PutItem
+            - dynamodb:GetItem
+            - dynamodb:UpdateItem
+            - dynamodb:Query
+            - dynamodb:Scan
+          Resource: "*"
+
+functions:
+  api:
+    # 前回のデバッグで確定したパス
+    handler: backend/f01_listener/server.handler
+    events:
+      - httpApi:
+          path: /{proxy+}
+          method: ANY
+      - httpApi:
+          path: /
+          method: ANY
+    timeout: 30
+
+plugins:
+  - serverless-wsgi
+  - serverless-python-requirements
+
+custom:
+  wsgi:
+    # Flaskアプリが定義されている場所
+    app: backend/f01_listener/server.app
+    packRequirements: false
+  pythonRequirements:
+    dockerizePip: true
