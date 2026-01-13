@@ -69,6 +69,38 @@ class DynamoDBHandler:
             logger.error(f"Unexpected error in save_log: {e}")
             raise
 
+        # backend/f03_db/database.py の DynamoDBHandler クラス内に追加
+
+    def get_recent_history(self, channel_id: str, limit: int = 10) -> str:
+        """
+        [F-03拡張] 特定のチャンネルから最新のメッセージを文字列形式で取得する (RAG用)
+        """
+        try:
+            # channel_id が PK ではない場合、Scan + Filter を行います（開発初期用）
+            # 本格的な運用では channel_id を PK にした GSI を貼るのがプロの流儀です
+            response = self.table.scan(
+                FilterExpression=boto3.dynamodb.conditions.Attr('channel_id').eq(channel_id),
+                Limit=limit
+            )
+            
+            items = response.get('Items', [])
+            
+            # タイムスタンプ(ts)でソートして、古い順に並べる
+            items.sort(key=lambda x: x['ts'])
+            
+            # AIに渡すためのテキスト形式に整形
+            history_text = "\n".join([
+                f"User {item.get('user_id', 'unknown')}: {item.get('text', '')}"
+                for item in items
+            ])
+            
+            logger.info(f"Retrieved {len(items)} history items for channel={channel_id}")
+            return history_text
+
+        except ClientError as e:
+            logger.error(f"❌ Error fetching history: {e.response['Error']['Message']}")
+            return ""
+
 if __name__ == "__main__":
     # 動作確認用（ローカルでAWS接続情報がある場合のみ動作）
     print("Testing DynamoDBHandler...")
